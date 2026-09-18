@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AlphaX — Sample size, without formulas</title>
+<style>
+:root{
+  --ground:#EDF1F3; --grid:#D9E1E6; --paper:#FBFCFD;
+  --ink:#16232E; --muted:#5D6E7B; --rule:#C4CED6;
+  --signal:#0B6E5F; --signal-soft:#E2EFEC; --warn:#A8471F; --warn-soft:#F7EAE4;
+  --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: "Helvetica Neue", Arial, "Segoe UI", system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--sans); color:var(--ink); background-color:var(--ground);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:22px 22px;
+  line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 80px}
+
+/* header */
+header{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:26px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+h1{font-size:clamp(26px,4.4vw,40px);line-height:1.05;margin:8px 0 6px;font-weight:700;letter-spacing:-.02em}
+h1 em{font-style:normal;color:var(--signal)}
+.sub{color:var(--muted);max-width:60ch;font-size:15px;margin:0}
+
+/* layout */
+.grid{display:grid;grid-template-columns:1fr 400px;gap:26px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+.card{background:var(--paper);border:1px solid var(--rule);padding:20px}
+.card + .card{margin-top:18px}
+h2{font-size:12px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;
+   color:var(--muted);margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+
+/* segmented controls */
+.seg{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--ink)}
+.seg button{flex:1 1 auto;min-width:120px;background:transparent;border:0;border-right:1px solid var(--ink);
+  padding:10px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink);text-align:center}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg button:focus-visible{outline:2px solid var(--signal);outline-offset:-4px}
+
+/* dials */
+.dial{padding:16px 0;border-bottom:1px dashed var(--rule)}
+.dial:last-child{border-bottom:0;padding-bottom:0}
+.dial-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.dial label{font-size:15px;font-weight:600}
+.dial .val{font-family:var(--mono);font-size:17px;color:var(--signal);font-weight:700;white-space:nowrap}
+.dial .hint{font-size:13px;color:var(--muted);margin:3px 0 10px;max-width:56ch}
+.dial .jargon{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+input[type=range]{width:100%;accent-color:var(--signal);height:22px}
+input[type=range]:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+input[type=number]{font-family:var(--mono);font-size:15px;padding:7px 9px;border:1px solid var(--rule);
+  background:var(--paper);color:var(--ink);width:110px}
+input[type=number]:focus-visible{outline:2px solid var(--signal);outline-offset:1px}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:5px}
+.field span{font-size:13px;color:var(--muted)}
+
+/* the stamp — signature element */
+.stamp-wrap{position:sticky;top:22px}
+.stamp{background:var(--paper);border:2px solid var(--ink);padding:24px 22px 20px;position:relative}
+.stamp::before,.stamp::after{content:"";position:absolute;width:12px;height:12px;border:2px solid var(--ink)}
+.stamp::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+.stamp::after{bottom:-2px;right:-2px;border-left:0;border-top:0}
+.stamp .tag{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.big{font-family:var(--mono);font-weight:700;font-size:clamp(52px,9vw,74px);line-height:.92;
+     letter-spacing:-.03em;color:var(--signal);margin:10px 0 2px}
+.big.warnish{color:var(--warn)}
+.unit{font-size:14px;color:var(--muted);margin-bottom:16px}
+.tot{font-family:var(--mono);font-size:15px;border-top:1px solid var(--rule);padding-top:12px}
+.tot b{color:var(--ink)}
+.flag{margin-top:14px;padding:11px 13px;font-size:13px;background:var(--warn-soft);
+      border-left:3px solid var(--warn);color:var(--ink)}
+.flag.ok{background:var(--signal-soft);border-left-color:var(--signal)}
+
+/* methods sentence */
+.sentence{font-family:var(--mono);font-size:13px;line-height:1.65;background:var(--ground);
+  border:1px solid var(--rule);padding:14px;white-space:pre-wrap}
+button.copy{margin-top:10px;width:100%;padding:11px;background:var(--ink);color:var(--paper);
+  border:0;font:inherit;font-size:14px;cursor:pointer;letter-spacing:.02em}
+button.copy:hover{background:var(--signal)}
+button.copy:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+
+/* what-if */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--rule)}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+td.n{font-family:var(--mono);font-weight:700;text-align:right;color:var(--signal)}
+tr.here td{background:var(--signal-soft)}
+tr.here td.n{color:var(--ink)}
+
+.note{font-size:13px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--rule)}
+.explain h3{font-size:14px;margin:16px 0 4px}
+.explain h3:first-child{margin-top:0}
+.explain p{font-size:13.5px;color:var(--muted);margin:0}
+footer{margin-top:32px;padding-top:16px;border-top:1px solid var(--rule);font-size:13px;color:var(--muted)}
+.hidden{display:none !important}
+@media(prefers-reduced-motion:no-preference){
+  .big{transition:color .2s ease}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">AlphaX Research Course · Session 4 </div>
+  <h1>How many people do I actually need?</h1>
+  <p class="sub">Turn the dials. The number is a consequence of your choices, not a fact about the world — so change your mind here, while it's free.</p>
+</header>
+
+<div class="grid">
+
+  <!-- ─────────── CONTROLS ─────────── -->
+  <div>
+
+    <div class="card">
+      <h2>1 · What are you measuring?</h2>
+      <div class="seg" role="group" aria-label="Study type">
+        <button id="mA" aria-pressed="false">One number<br><small>a prevalence, an accuracy</small></button>
+        <button id="mB" aria-pressed="true">Two groups — percentages<br><small>e.g. % diagnosed late</small></button>
+        <button id="mC" aria-pressed="false">Two groups — averages<br><small>e.g. ZBI score</small></button>
+      </div>
+
+      <div style="margin-top:14px" class="seg" role="group" aria-label="Direction">
+        <button id="dirF" aria-pressed="true">Find how many I need</button>
+        <button id="dirB" aria-pressed="false">Find what I could detect</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2 · The dials</h2>
+
+      <!-- MODE A -->
+      <div id="paneA" class="hidden">
+        <div class="dial">
+          <div class="dial-head"><label for="aP">Roughly what percentage do you expect?</label><span class="val" id="aPv">2%</span></div>
+          <p class="hint">Your best guess from the literature. If you have no idea, use 50% — it's the most cautious answer and gives the largest sample.</p>
+          <input type="range" id="aP" min="1" max="99" step="1" value="2">
+          <div class="jargon">statisticians call this: expected proportion (p)</div>
+        </div>
+        <div class="dial" id="dialMargin">
+          <div class="dial-head"><label for="aM">How precise does the answer need to be?</label><span class="val" id="aMv">± 2 points</span></div>
+          <p class="hint">"Prevalence was 2%, give or take this much." Halving this roughly quadruples your sample.</p>
+          <input type="range" id="aM" min="0.5" max="15" step="0.5" value="2">
+          <div class="jargon">statisticians call this: margin of error / half-width of the 95% CI</div>
+        </div>
+        <div class="dial">
+          <div class="row">
+            <div class="field"><span>Total population, if you know it (optional)</span>
+              <input type="number" id="aN" min="0" step="100" placeholder="leave blank"></div>
+          </div>
+          <p class="hint" style="margin-top:8px">Only helps when your population is small — sampling 400 out of 500 people is different from 400 out of a million.</p>
+        </div>
+      </div>
+
+      <!-- MODE B -->
+      <div id="paneB">
+        <div class="dial">
+          <div class="dial-head"><label for="bP1">Group 1 — what percentage do you expect?</label><span class="val" id="bP1v">30%</span></div>
+          <p class="hint">Your comparison group. Take this from a published study if you can, and cite it.</p>
+          <input type="range" id="bP1" min="1" max="99" step="1" value="30">
+        </div>
+        <div class="dial" id="dialP2">
+          <div class="dial-head"><label for="bP2">Group 2 — what percentage would matter?</label><span class="val" id="bP2v">45%</span></div>
+          <p class="hint">Not what you hope for — the smallest difference that would actually change what someone does. This is the biggest lever on the whole calculation.</p>
+          <input type="range" id="bP2" min="1" max="99" step="1" value="45">
+          <div class="jargon">statisticians call this: the minimum clinically important difference</div>
+        </div>
+      </div>
+
+      <!-- MODE C -->
+      <div id="paneC" class="hidden">
+        <div class="dial" id="dialDelta">
+          <div class="dial-head"><label for="cD">How big a difference would matter?</label><span class="val" id="cDv">5 points</span></div>
+          <p class="hint">In the real units of your instrument. For the Zarit Burden Interview (0–88), a change of about 5 points is the usual threshold people treat as meaningful.</p>
+          <input type="range" id="cD" min="0.5" max="30" step="0.5" value="5">
+        </div>
+        <div class="dial">
+          <div class="dial-head"><label for="cS">How spread out are the scores?</label><span class="val" id="cSv">SD 14</span></div>
+          <p class="hint">The standard deviation, from a published study using the same instrument. Noisier measurements need bigger samples.</p>
+          <input type="range" id="cS" min="1" max="40" step="1" value="14">
+        </div>
+      </div>
+
+      <!-- SHARED: power / alpha -->
+      <div id="paneCompare">
+        <div class="dial">
+          <div class="dial-head"><label for="pw">How sure do you want to be that you don't miss a real difference?</label><span class="val" id="pwv">80%</span></div>
+          <p class="hint">80% is the usual minimum; 90% is safer and costs about a third more people.</p>
+          <input type="range" id="pw" min="50" max="99" step="1" value="80">
+          <div class="jargon">statisticians call this: power (1 − β)</div>
+        </div>
+        <div class="dial">
+          <div class="dial-head"><label for="al">How willing are you to be fooled by chance?</label><span class="val" id="alv">5%</span></div>
+          <p class="hint">5% is the convention. Lower it only if you have a reason you can defend.</p>
+          <input type="range" id="al" min="1" max="10" step="1" value="5">
+          <div class="jargon">statisticians call this: alpha (α), two-sided</div>
+        </div>
+        <div class="dial">
+          <div class="dial-head"><label for="ra">Group sizes</label><span class="val" id="rav">1 : 1</span></div>
+          <p class="hint">Sometimes one group is easier to recruit. Unequal groups need more people in total.</p>
+          <input type="range" id="ra" min="1" max="4" step="0.5" value="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3 · The two reality taxes</h2>
+      <div class="dial">
+        <div class="dial-head"><label for="dr">How many will you lose?</label><span class="val" id="drv">20%</span></div>
+        <p class="hint">People who don't answer, don't finish, or can't be reached. Beginners always underestimate this. 20–30% is normal for a survey.</p>
+        <input type="range" id="dr" min="0" max="60" step="5" value="20">
+      </div>
+      <div class="dial">
+        <div class="dial-head"><label for="de">Are you recruiting through clinics, schools or villages?</label><span class="val" id="dev">1.5</span></div>
+        <p class="hint">People from the same place resemble each other, so each extra person from that place tells you less. 1.0 means you're sampling individuals independently; 1.5–2.0 is typical for clinic or school clusters.</p>
+        <input type="range" id="de" min="1" max="3" step="0.1" value="1.5">
+        <div class="jargon">statisticians call this: the design effect (DEFF)</div>
+      </div>
+      <div class="dial">
+        <div class="row">
+          <div class="field"><span>People you can realistically complete per week</span>
+            <input type="number" id="rate" min="1" step="1" value="15"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BACKWARD MODE INPUT -->
+    <div class="card hidden" id="backCard">
+      <h2>How many can you actually get?</h2>
+      <div class="dial">
+        <div class="row">
+          <div class="field"><span id="backLabel">People you can recruit per group</span>
+            <input type="number" id="backN" min="5" step="10" value="120"></div>
+        </div>
+        <p class="hint" style="margin-top:10px">This is the honest direction. Most four-month projects should start here, find out what they could realistically detect, and then decide whether that question is still worth asking.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─────────── OUTPUT ─────────── -->
+  <div class="stamp-wrap">
+
+    <div class="stamp">
+      <div class="tag" id="stampTag">Sample size · per group</div>
+      <div class="big warnish" id="bigN">300</div>
+      <div class="unit" id="bigUnit">people in each group</div>
+      <div class="tot" id="totLine">Total to recruit: <b>600</b></div>
+      <div class="tot" style="border-top:0;padding-top:4px" id="weekLine">At 15 per week: <b>40 weeks</b></div>
+      <div id="flag" class="flag">That is 40 weeks of recruitment. A four-month project has about 16.</div>
+    </div>
+
+    <div class="card">
+      <h2>Paste this into your proposal</h2>
+      <div class="sentence" id="sentence"></div>
+      <button class="copy" id="copyBtn">Copy the sentence</button>
+      <p class="note">Replace every assumed number with a citation before you submit. A reviewer's first question is always “where did 30% come from?”</p>
+    </div>
+
+    <div class="card">
+      <h2>If you changed your mind</h2>
+      <table><thead><tr><th>Scenario</th><th style="text-align:right">Per group</th></tr></thead>
+      <tbody id="whatif"></tbody></table>
+      <p class="note">Nothing about the world changes between these rows. Only your ambition does.</p>
+    </div>
+
+    <div class="card explain">
+      <h2>What the four dials mean</h2>
+      <h3>The difference you care about</h3>
+      <p>The smaller the difference you want to catch, the more people you need — and it grows fast. This is the dial students never think about and the one that decides everything.</p>
+      <h3>How noisy the measurement is</h3>
+      <p>A shaky instrument or a varied population hides real differences. More noise, more people.</p>
+      <h3>Power</h3>
+      <p>Your chance of finding a real difference if one is genuinely there. At 80% power you are accepting a one-in-five chance of missing it.</p>
+      <h3>Alpha</h3>
+      <p>Your tolerance for calling something real when it isn't. Conventionally 5%.</p>
+      <h3>And then reality</h3>
+      <p>People drop out, and people recruited from the same clinic resemble each other. Both mean you recruit more than the textbook number.</p>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  Built for the AlphaX research course. This gives you a defensible planning number, not a substitute for a statistician —
+  before you submit, have someone check the analysis this sample size is meant to support.
+</footer>
+</div>
+
+<script>
+/* ---------- inverse normal CDF (Acklam) ---------- */
+function normInv(p){
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pl=0.02425;let q,r;
+  if(p<pl){q=Math.sqrt(-2*Math.log(p));
+    return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  if(p>1-pl){q=Math.sqrt(-2*Math.log(1-p));
+    return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  q=p-0.5;r=q*q;
+  return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+}
+const $=id=>document.getElementById(id);
+let mode='B', dir='F';
+
+/* ---------- core maths ---------- */
+function zs(alphaPct, powerPct){
+  return { za: normInv(1-(alphaPct/100)/2), zb: normInv(powerPct/100) };
+}
+function nProportionEstimate(p, marginPct, popN){
+  const z=1.959963985, m=marginPct/100, pr=p/100;
+  let n = z*z*pr*(1-pr)/(m*m);
+  if(popN && popN>0) n = n/(1+(n-1)/popN);
+  return n;
+}
+function nTwoProportions(p1,p2,alphaPct,powerPct,k){
+  if(p1===p2) return Infinity;
+  const {za,zb}=zs(alphaPct,powerPct);
+  const a=p1/100,b=p2/100;
+  return Math.pow(za+zb,2)*(a*(1-a)+b*(1-b)/k)/Math.pow(a-b,2);
+}
+function nTwoMeans(delta,sd,alphaPct,powerPct,k){
+  if(delta<=0) return Infinity;
+  const {za,zb}=zs(alphaPct,powerPct);
+  return Math.pow(za+zb,2)*sd*sd*(1+1/k)/(delta*delta);
+}
+function inflate(n,dropPct,deff){
+  if(!isFinite(n)) return Infinity;
+  return Math.ceil(n*deff/(1-dropPct/100));
+}
+function deflate(n,dropPct,deff){ return Math.max(3, Math.floor(n*(1-dropPct/100)/deff)); }
+
+/* ---------- read state ---------- */
+function state(){
+  return {
+    aP:+$('aP').value, aM:+$('aM').value, aN:+$('aN').value||0,
+    bP1:+$('bP1').value, bP2:+$('bP2').value,
+    cD:+$('cD').value, cS:+$('cS').value,
+    pw:+$('pw').value, al:+$('al').value, k:+$('ra').value,
+    dr:+$('dr').value, de:+$('de').value,
+    rate:Math.max(1,+$('rate').value||1),
+    backN:Math.max(5,+$('backN').value||5)
+  };
+}
+
+/* ---------- render ---------- */
+function render(){
+  const s=state();
+  // labels
+  $('aPv').textContent=s.aP+'%';
+  $('aMv').textContent='± '+s.aM+' points';
+  $('bP1v').textContent=s.bP1+'%';
+  $('bP2v').textContent=s.bP2+'%';
+  $('cDv').textContent=s.cD+' points';
+  $('cSv').textContent='SD '+s.cS;
+  $('pwv').textContent=s.pw+'%';
+  $('alv').textContent=s.al+'%';
+  $('rav').textContent='1 : '+s.k;
+  $('drv').textContent=s.dr+'%';
+  $('dev').textContent=s.de.toFixed(1);
+
+  if(dir==='F') renderForward(s); else renderBackward(s);
+}
+
+function renderForward(s){
+  let per, total, sentence, tag, unit;
+
+  if(mode==='A'){
+    const raw=nProportionEstimate(s.aP,s.aM,s.aN);
+    per=inflate(raw,s.dr,s.de); total=per; tag='Sample size · total';
+    unit='people in the survey';
+    sentence=`A sample of ${per} participants allows the proportion to be estimated with a margin of error of ±${s.aM} percentage points at the 95% confidence level, assuming an expected proportion of ${s.aP}%${s.aN?`, in a population of ${s.aN}`:''}. This figure is inflated for a design effect of ${s.de.toFixed(1)} and ${s.dr}% non-response.`;
+  }
+  else if(mode==='B'){
+    const raw=nTwoProportions(s.bP1,s.bP2,s.al,s.pw,s.k);
+    per=inflate(raw,s.dr,s.de);
+    total=isFinite(per)?Math.ceil(per+per*s.k):Infinity;
+    tag='Sample size · per group'; unit='in the first group';
+    sentence=`A sample of ${per} in group 1 and ${isFinite(per)?Math.ceil(per*s.k):'—'} in group 2 (${total} total) provides ${s.pw}% power to detect a difference between ${s.bP1}% and ${s.bP2}% at a two-sided alpha of ${s.al}%. This figure is inflated for a design effect of ${s.de.toFixed(1)} and ${s.dr}% loss to follow-up or non-response.`;
+  }
+  else{
+    const raw=nTwoMeans(s.cD,s.cS,s.al,s.pw,s.k);
+    per=inflate(raw,s.dr,s.de);
+    total=isFinite(per)?Math.ceil(per+per*s.k):Infinity;
+    tag='Sample size · per group'; unit='in the first group';
+    sentence=`A sample of ${per} in group 1 and ${isFinite(per)?Math.ceil(per*s.k):'—'} in group 2 (${total} total) provides ${s.pw}% power to detect a difference of ${s.cD} points, assuming a standard deviation of ${s.cS}, at a two-sided alpha of ${s.al}%. This figure is inflated for a design effect of ${s.de.toFixed(1)} and ${s.dr}% loss to follow-up or non-response.`;
+  }
+
+  const big=isFinite(per)?per.toLocaleString():'—';
+  $('bigN').textContent=big;
+  $('stampTag').textContent=tag;
+  $('bigUnit').textContent=unit;
+  $('totLine').innerHTML = mode==='A' ? '&nbsp;' : `Total to recruit: <b>${isFinite(total)?total.toLocaleString():'—'}</b>`;
+  const wk=isFinite(total)?Math.ceil(total/s.rate):Infinity;
+  $('weekLine').innerHTML=`At ${s.rate} per week: <b>${isFinite(wk)?wk+' weeks':'—'}</b>`;
+
+  // verdict
+  const f=$('flag');
+  if(!isFinite(total)){ f.className='flag'; f.textContent='Set a difference greater than zero — a study cannot detect no difference.'; }
+  else if(wk>34){ f.className='flag'; f.textContent=`That is ${wk} weeks of recruitment. A four-month project has about 16. Either accept a larger detectable difference, add sites, or change the design.`; }
+  else if(wk>16){ f.className='flag'; f.textContent=`${wk} weeks of recruitment is tight for four months. Plan for it now, or reduce the target.`; }
+  else { f.className='flag ok'; f.textContent=`Within reach: about ${wk} weeks of recruitment.`; }
+
+  $('bigN').className = (isFinite(total)&&wk<=16)?'big':'big warnish';
+  $('sentence').textContent=sentence;
+  renderWhatIf(s,per);
+}
+
+function renderBackward(s){
+  const eff=deflate(s.backN,s.dr,s.de);
+  let val, sentence, unit, tag='Smallest difference you could detect';
+
+  if(mode==='A'){
+    const z=1.959963985, pr=s.aP/100;
+    const m=z*Math.sqrt(pr*(1-pr)/eff)*100;
+    val='± '+m.toFixed(1);
+    unit='percentage points, at 95% confidence';
+    sentence=`With ${s.backN} participants recruited (about ${eff} effective, after ${s.dr}% non-response and a design effect of ${s.de.toFixed(1)}), a proportion of around ${s.aP}% can be estimated to within ±${m.toFixed(1)} percentage points at the 95% confidence level.`;
+  }
+  else if(mode==='B'){
+    // bigger difference needs fewer people, so n is monotone decreasing in p2:
+    // bisect for the smallest p2 above p1 that this many people can detect.
+    let a=s.bP1+0.01, b=99.5;
+    for(let i=0;i<80;i++){
+      const mid=(a+b)/2;
+      if(nTwoProportions(s.bP1,mid,s.al,s.pw,s.k)>eff) a=mid; else b=mid;
+    }
+    const ans=b;
+    const diff=ans-s.bP1;
+    if(ans>=99.4){ val='—'; unit='not detectable with this many people'; }
+    else { val=diff.toFixed(1); unit=`percentage points — you could detect ${s.bP1}% vs ${ans.toFixed(1)}%`; }
+    sentence=`With ${s.backN} participants per group (about ${eff} effective per group, after ${s.dr}% non-response and a design effect of ${s.de.toFixed(1)}), the study has ${s.pw}% power to detect a difference of ${ans>=99.4?'—':diff.toFixed(1)+' percentage points'} from a baseline of ${s.bP1}%, at a two-sided alpha of ${s.al}%.`;
+  }
+  else{
+    const {za,zb}=zs(s.al,s.pw);
+    const d=(za+zb)*s.cS*Math.sqrt(1/eff + 1/(eff*s.k));
+    val=d.toFixed(1);
+    unit=`points on your scale (SD ${s.cS})`;
+    sentence=`With ${s.backN} participants per group (about ${eff} effective per group, after ${s.dr}% non-response and a design effect of ${s.de.toFixed(1)}), the study has ${s.pw}% power to detect a difference of ${d.toFixed(1)} points, assuming a standard deviation of ${s.cS}, at a two-sided alpha of ${s.al}%.`;
+  }
+
+  $('stampTag').textContent=tag;
+  $('bigN').textContent=val;
+  $('bigN').className='big';
+  $('bigUnit').textContent=unit;
+  const totalPeople = mode==='A'? s.backN : Math.ceil(s.backN + s.backN*s.k);
+  $('totLine').innerHTML=`Total to recruit: <b>${totalPeople.toLocaleString()}</b>`;
+  const wk=Math.ceil(totalPeople/s.rate);
+  $('weekLine').innerHTML=`At ${s.rate} per week: <b>${wk} weeks</b>`;
+  const f=$('flag'); f.className='flag ok';
+  f.textContent='Now ask the real question: if that is the smallest difference you can see, is it still worth doing?';
+  $('sentence').textContent=sentence;
+  $('whatif').innerHTML='<tr><td colspan="2" style="color:var(--muted);font-size:13px">Switch back to “Find how many I need” to compare scenarios.</td></tr>';
+}
+
+function renderWhatIf(s,current){
+  const rows=[];
+  const fmt=n=>isFinite(n)?n.toLocaleString():'—';
+  if(mode==='A'){
+    [1,2,3,5].forEach(m=>rows.push([`Margin of ± ${m} points`, inflate(nProportionEstimate(s.aP,m,s.aN),s.dr,s.de), m===s.aM]));
+  } else if(mode==='B'){
+    const d=Math.abs(s.bP2-s.bP1);
+    [d/2,d,d*1.5].forEach(dd=>{
+      const p2=Math.min(99,s.bP1+dd);
+      rows.push([`A difference of ${dd.toFixed(1)} points`, inflate(nTwoProportions(s.bP1,p2,s.al,s.pw,s.k),s.dr,s.de), Math.abs(dd-d)<0.01]);
+    });
+    rows.push([`Power raised to 90%`, inflate(nTwoProportions(s.bP1,s.bP2,s.al,90,s.k),s.dr,s.de), s.pw===90]);
+    rows.push([`No clustering (design effect 1.0)`, inflate(nTwoProportions(s.bP1,s.bP2,s.al,s.pw,s.k),s.dr,1), Math.abs(s.de-1)<0.01]);
+  } else {
+    const d=s.cD;
+    [d/2,d,d*1.5].forEach(dd=>rows.push([`A difference of ${dd.toFixed(1)} points`, inflate(nTwoMeans(dd,s.cS,s.al,s.pw,s.k),s.dr,s.de), Math.abs(dd-d)<0.01]));
+    rows.push([`Power raised to 90%`, inflate(nTwoMeans(s.cD,s.cS,s.al,90,s.k),s.dr,s.de), s.pw===90]);
+    rows.push([`No clustering (design effect 1.0)`, inflate(nTwoMeans(s.cD,s.cS,s.al,s.pw,s.k),s.dr,1), Math.abs(s.de-1)<0.01]);
+  }
+  $('whatif').innerHTML=rows.map(r=>`<tr class="${r[2]?'here':''}"><td>${r[0]}</td><td class="n">${fmt(r[1])}</td></tr>`).join('');
+}
+
+/* ---------- wiring ---------- */
+function setMode(m){
+  mode=m;
+  [['A','mA'],['B','mB'],['C','mC']].forEach(([k,id])=>$(id).setAttribute('aria-pressed', k===m));
+  $('paneA').classList.toggle('hidden', m!=='A');
+  $('paneB').classList.toggle('hidden', m!=='B');
+  $('paneC').classList.toggle('hidden', m!=='C');
+  $('paneCompare').classList.toggle('hidden', m==='A');
+  $('dialMargin').classList.toggle('hidden', m==='A' && dir==='B');
+  $('dialP2').classList.toggle('hidden', m==='B' && dir==='B');
+  $('dialDelta').classList.toggle('hidden', m==='C' && dir==='B');
+  $('backLabel').textContent = m==='A' ? 'People you can recruit in total' : 'People you can recruit per group';
+  render();
+}
+function setDir(d){
+  dir=d;
+  $('dirF').setAttribute('aria-pressed', d==='F');
+  $('dirB').setAttribute('aria-pressed', d==='B');
+  $('backCard').classList.toggle('hidden', d!=='B');
+  setMode(mode);
+}
+$('mA').onclick=()=>setMode('A'); $('mB').onclick=()=>setMode('B'); $('mC').onclick=()=>setMode('C');
+$('dirF').onclick=()=>setDir('F'); $('dirB').onclick=()=>setDir('B');
+['aP','aM','aN','bP1','bP2','cD','cS','pw','al','ra','dr','de','rate','backN']
+  .forEach(id=>$(id).addEventListener('input',render));
+
+$('copyBtn').onclick=async()=>{
+  const t=$('sentence').textContent;
+  try{ await navigator.clipboard.writeText(t); }
+  catch(e){ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  const b=$('copyBtn'); b.textContent='Copied'; setTimeout(()=>b.textContent='Copy the sentence',1400);
+};
+
+setDir('F');
+</script>
+</body>
+</html>
